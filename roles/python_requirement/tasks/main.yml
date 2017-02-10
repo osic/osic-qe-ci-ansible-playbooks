@@ -1,0 +1,20 @@
+---
+- name: Raw install python if needed
+  raw: |
+    set -x
+    if [ -z $(which python) ]; then
+      OS_ID=$(grep -w ID /etc/os-release | awk -F'=' '{print $2}')
+      if [ $OS_ID == "ubuntu" ]; then
+        apt_run=$(pgrep -a apt)
+        while [[ -n "${apt_run}" ]]; do
+          echo "apt running, sleeping"
+          sleep 1
+          apt_run=$(pgrep -a apt)
+        done
+        sudo apt install -y python aptitude
+      else
+        sudo yum install -y python
+      fi
+    fi
+  args:
+    executable: /bin/bash

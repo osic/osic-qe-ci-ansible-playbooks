@@ -1,0 +1,12 @@
+---
+- hosts: all
+  become: yes
+  gather_facts: no
+  roles:
+    - python_requirement
+
+- hosts: all
+  become: yes
+  roles:
+    #- common
+    - jenkins_build_node

@@ -1,0 +1,143 @@
+---
+- name: Remove existing private key for Jenkins build if exists
+  local_action: file path=jenkins_key state=absent
+  become: no
+
+- name: Remove existing public key for Jenkins build if exists
+  local_action: file path=jenkins_key.pub state=absent
+  become: no
+
+- name: Create new SSH key
+  local_action: command ssh-keygen -t rsa -P "" -f jenkins_key
+  become: no
+
+- name: Install Jenkins repo key
+  apt_key:
+    url: https://pkg.jenkins.io/debian/jenkins-ci.org.key
+    state: present
+
+- name: Add Jenkins repo
+  copy:
+    src: jenkins.list
+    dest: /etc/apt/sources.list.d/jenkins.list
+    owner: root
+    group: root
+    mode: 0644
+
+- name: Install Java on Ubuntu 14.04
+  apt:
+    name: openjdk-7-jre-headless
+    update_cache: yes
+    state: latest
+  when:
+    - ansible_distribution_release | lower == 'trusty'
+
+- name: Install Java on Ubuntu 16.04
+  apt:
+    name: openjdk-8-jre-headless
+    update_cache: yes
+    state: latest
+  when:
+    - ansible_distribution_release == 'xenial'
+
+- name: Install Jenkins
+  apt:
+    name: jenkins
+    update_cache: yes
+    state: latest
+
+- name: Create .ssh
+  file:
+    path: /var/lib/jenkins/.ssh
+    state: directory
+    owner: jenkins
+    group: jenkins
+    mode: 0700
+
+- name: Update SSH key for Jenkins Master node
+  copy:
+    src: jenkins_key
+    dest: /var/lib/jenkins/.ssh/id_rsa
+    owner: jenkins
+    group: jenkins
+    mode: 0600
+
+- name: Ensure jenkins running
+  service:
+    name: jenkins
+    state: started
+
+- name: Pause to give time for Jenkins to started
+  pause:
+    seconds: 10
+
+- name: Get Jenkins initial password
+  command: cat /var/lib/jenkins/secrets/initialAdminPassword
+  args:
+    chdir: /var/lib/jenkins/secrets
+  register: jenkins_admin_password
+
+- name: Install default installed plugins
+  jenkins_plugin:
+    state: present
+    name: "{{ item }}"
+    params:
+      url_username: admin
+      url_password: "{{ jenkins_admin_password.stdout }}"
+  with_items:
+    - jclouds-jenkins
+    - cloudbees-folder
+    - antisamy-markup-formatter
+    - build-timeout
+    - credentials-binding
+    - timestamper
+    - ws-cleanup
+    - ant
+    - gradle
+    - workflow-aggregator
+    - github-organization-folder
+    - pipeline-stage-view
+    - git
+    - subversion
+    - matrix-auth
+    - pam-auth
+    - ldap
+    - email-ext
+    - mailer
+  ignore_errors: yes
+
+- name: Get Jenkins Repo
+  local_action: git repo=https://github.com/osic/qa-zero-downtime-jenkins-configuration.git dest=jenkins_scm
+  become: no
+
+- name: Copy main Jenkins config
+  copy:
+    src: jenkins_scm/config.xml
+    dest: /var/lib/jenkins/config.xml
+    owner: jenkins
+    group: jenkins
+    mode: 0644
+    force: yes
+  notify:
+    - Restart Jenkins
+
+- name: Copy Users from SCM
+  synchronize:
+    src: jenkins_scm/users
+    dest: /var/lib/jenkins
+    recursive: yes
+  notify:
+    - Restart Jenkins
+
+- name: Set File Permissions on users directory
+  file:
+    path: /var/lib/jenkins/users
+    owner: jenkins
+    group: jenkins
+    mode: 0755
+    state: directory
+    recurse: yes
+
+- name: Clear Local Jenkins Repo
+  local_action: file path=jenkins_scm state=absent
+  become: no

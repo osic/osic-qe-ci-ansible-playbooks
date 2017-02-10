@@ -1,0 +1,38 @@
+---
+- name: Verify Ansible Version
+  assert:
+    that:
+      - "{{ ansible_version['major'] }} >= 2"
+      - "{{ ansible_version['minor'] }} >= 2"
+    mesg: "This playbook requires  Ansible 2.2 or greater"
+
+- name: Verify facts
+  assert:
+    that:
+      - ansible_distribution | lower == 'ubuntu'
+      - ansible_distribution_release | lower == 'trusty' or
+        ansible_distribution_release | lower == 'xenial'
+    mesg: Currently only supports Ubuntu 14.04 and Ubuntu 16.04
+
+- name: Update system via apt
+  apt:
+    update_cache: yes
+    upgrade: yes
+  ignore_errors: yes
+  notify:
+    - Wait for machine to come back
+
+- name: Reboot machine after updates if required
+  shell: "shutdown -r now"
+  args:
+    removes: /var/run/reboot-required
+    executable: /bin/bash
+  ignore_errors: yes
+  register: reboot_required
+  notify:
+    - Wait for machine to come back
+
+- name: Verify Connectivity after Updates
+  local_action: wait_for host="{{ ansible_ssh_host | default(inventory_hostname) }}" state=started port=22 search_regex=OpenSSH delay=30 timeout=600
+  become: no
+  when: reboot_required.stdout.find('skipped') != 0

@@ -1,0 +1,47 @@
+---
+- name: Install Java
+  apt:
+    name: default-jre
+    update_cache: yes
+    state: latest
+
+- name: Add jenkins user
+  user:
+    name: jenkins
+    state: present
+    generate_ssh_key: yes
+
+- name: Add created SSH key
+  copy:
+    src: jenkins_key.pub
+    dest: /home/jenkins/.ssh/authorized_keys
+    owner: jenkins
+    group: jenkins
+    mode: 0600
+
+- name: Download f5fpc vpn client
+  get_url:
+      url: "https://72.32.87.87/public/download/linux_sslvpn.tgz"
+      dest: /root/
+      validate_certs: no
+  when: "{{ install_f5fpc }}"
+
+- name: Untar vpn
+  command: tar -xvf linux_sslvpn.tgz
+  args:
+    chdir: /root
+    creates: Install.sh
+  when: "{{ install_f5fpc }}"
+
+- name: Make f5fpc install non-interactive
+  command: sed -i 's/^read\ answer/answer="yes"/' Install.sh
+  args:
+    chdir: /root
+  when: "{{ install_f5fpc }}"
+
+- name: Install f5fpc
+  command: bash Install.sh
+  args:
+    chdir: /root
+    creates: /usr/local/bin/f5fpc
+  when: "{{ install_f5fpc }}"
