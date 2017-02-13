@@ -5,8 +5,8 @@
   roles:
     - python_requirement
 
-- hosts: all
+- hosts: jenkins_build
   become: yes
   roles:
-    #- common
+    - common
     - jenkins_build_node
