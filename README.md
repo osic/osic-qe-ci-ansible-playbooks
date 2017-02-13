@@ -24,7 +24,7 @@ Addionally, **Ansible 2.2** or greater is needed on the deploy host due to modul
 
 ## Playbooks
 * `provision_jenkins_master.yml` - provisions Jenkins build master installing default plugins and adding current Jenkins users from the [jenkins backup repo](https://github.com/osic/qa-zero-downtime-jenkins-configuration). **Due to backup plugin configuration, this does not configure backup on the newly build Jenkins to push backups to that repo, and that would require being done manually**
-* `provision_jenkins_build.yml` - provisions server with requirements for using as an ssh slave for an existing Jenkins master. Would require manual ssh key creation/addition between nodes.
+* `provision_jenkins_build.yml` - provisions server with requirements for using as an ssh slave for an existing Jenkins master. Would require manual ssh key creation/addition between nodes. By default via group_vars, build node installs f5fpc vpn client.
 * `provision_jenkins.yml` - Creates jenkins master/build pair. Due to possible networking configuration differences, this does require manually adding build node to master via `Manage Jenkins >> Nodes` using the Jenkins SSH credential created on provision.
 * `provision_elasticsearch.yml` - Creates ElasticSearch and Kibana node with OSIC-QE indexes and visualizations.
 * `provision_all.yml` - Performs all functions above.
